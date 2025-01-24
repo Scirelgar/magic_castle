@@ -36,6 +36,7 @@ jobs:
 
       - name: Run terraform init
         run: |
+          ls -l
           echo ${PWD}
           ~/bin/terraform init
 
