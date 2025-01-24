@@ -36,9 +36,11 @@ jobs:
 
       - name: Run terraform init
         run: |
-          ls -l
-          echo ${PWD}
-          ~/bin/terraform init
+          ~/bin/terraform -chdir=aws init
+          ~/bin/terraform -chdir=azure init
+          ~/bin/terraform -chdir=gcp init
+          ~/bin/terraform -chdir=openstack init
+          ~/bin/terraform -chdir=avh init
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
