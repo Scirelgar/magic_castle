@@ -9,7 +9,7 @@ on:
 jobs:
   trivy-vuln-scan:
     name: Running Trivy Scan
-    runs-on: ubtuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
