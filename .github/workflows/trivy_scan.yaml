@@ -19,6 +19,7 @@ jobs:
       - name: Aqua Security Trivy
         uses: aquasecurity/trivy-action@0.29.0
         with:
+          scan-type: "config"
           severity: "CRITICAL, HIGH"
           format: "sarif"
           output: "trivy-results.sarif"
