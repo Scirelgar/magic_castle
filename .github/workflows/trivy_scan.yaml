@@ -1,0 +1,29 @@
+name: Trivy Vulnerabilities Scan
+
+on:
+  push:
+    tags:
+      - "*"
+  pull_request:
+
+jobs:
+  trivy-vuln-scan:
+    name: Running Trivy Scan
+    runs-on: ubtuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # with:
+        #   sparse-checkout: ./examples/**
+
+      - name: Aqua Security Trivy
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          severity: "CRITICAL, HIGH"
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results.sarif"
