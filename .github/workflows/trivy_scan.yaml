@@ -34,21 +34,9 @@ jobs:
           mv -v terraform "${HOME}/bin/terraform"
           ~/bin/terraform version
 
-      - name: Create SSH keys
+      - name: Run terraform init
         run: |
-          ssh-keygen -b 2048 -t rsa -q -N "" -f ~/.ssh/id_rsa
-
-      - name: Test AWS
-        uses: ./.github/actions/test_provider
-        with:
-          path: ~/bin
-          provider: "aws"
-
-      - name: Test Azure
-        uses: ./.github/actions/test_provider
-        with:
-          path: ~/bin
-          provider: "azure"
+          ~/bin/terraform init
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
