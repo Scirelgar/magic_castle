@@ -15,8 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: ./examples/
+        # with:
+        #   sparse-checkout: ./examples/
 
       - name: Cache Terraform
         id: cache-terraform
