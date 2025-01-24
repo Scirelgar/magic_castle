@@ -18,34 +18,34 @@ jobs:
         # with:
         #   sparse-checkout: ./examples/
 
-      - name: Cache Terraform
-        id: cache-terraform
-        uses: actions/cache@v4
-        with:
-          path: ~/bin
-          key: terraform-${{ env.TF_VERSION }}
+      #   - name: Cache Terraform
+      #     id: cache-terraform
+      #     uses: actions/cache@v4
+      #     with:
+      #       path: ~/bin
+      #       key: terraform-${{ env.TF_VERSION }}
 
-      - name: Download terraform
-        if: steps.cache-terraform.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "${HOME}/bin"
-          curl -sSL -o terraform.zip "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
-          unzip terraform.zip
-          mv -v terraform "${HOME}/bin/terraform"
-          ~/bin/terraform version
+      #   - name: Download terraform
+      #     if: steps.cache-terraform.outputs.cache-hit != 'true'
+      #     run: |
+      #       mkdir -p "${HOME}/bin"
+      #       curl -sSL -o terraform.zip "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+      #       unzip terraform.zip
+      #       mv -v terraform "${HOME}/bin/terraform"
+      #       ~/bin/terraform version
 
-      - name: Run terraform init
-        run: |
-          ~/bin/terraform -chdir=aws init
-          ~/bin/terraform -chdir=azure init
-          ~/bin/terraform -chdir=gcp init
-          ~/bin/terraform -chdir=openstack init
-          ~/bin/terraform -chdir=ovh init
-          ~/bin/terraform -chdir=examples/aws init
-          ~/bin/terraform -chdir=examples/azure init
-          ~/bin/terraform -chdir=examples/gcp init
-          ~/bin/terraform -chdir=examples/openstack init
-          ~/bin/terraform -chdir=examples/ovh init
+      #   - name: Run terraform init
+      #     run: |
+      #       ~/bin/terraform -chdir=aws init
+      #       ~/bin/terraform -chdir=azure init
+      #       ~/bin/terraform -chdir=gcp init
+      #       ~/bin/terraform -chdir=openstack init
+      #       ~/bin/terraform -chdir=ovh init
+      #       ~/bin/terraform -chdir=examples/aws init
+      #       ~/bin/terraform -chdir=examples/azure init
+      #       ~/bin/terraform -chdir=examples/gcp init
+      #       ~/bin/terraform -chdir=examples/openstack init
+      #       ~/bin/terraform -chdir=examples/ovh init
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
