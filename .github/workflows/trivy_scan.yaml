@@ -36,6 +36,7 @@ jobs:
 
       - name: Run terraform init
         run: |
+          echo ${PWD}
           ~/bin/terraform init
 
       - name: Run Trivy vulnerability scanner in repo mode
