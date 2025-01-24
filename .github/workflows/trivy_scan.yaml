@@ -41,6 +41,11 @@ jobs:
           ~/bin/terraform -chdir=gcp init
           ~/bin/terraform -chdir=openstack init
           ~/bin/terraform -chdir=ovh init
+          ~/bin/terraform -chdir=examples/aws init
+          ~/bin/terraform -chdir=examples/azure init
+          ~/bin/terraform -chdir=examples/gcp init
+          ~/bin/terraform -chdir=examples/openstack init
+          ~/bin/terraform -chdir=examples/ovh init
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
