@@ -52,7 +52,7 @@ jobs:
         with:
           scan-type: "fs"
           scanners: "misconfig"
-          severity: "CRITICAL,HIGH"
+          severity: "CRITICAL,HIGH,MEDIUM"
           #   format: "sarif"
           #   output: "trivy-results.sarif"
           output: trivy.txt
