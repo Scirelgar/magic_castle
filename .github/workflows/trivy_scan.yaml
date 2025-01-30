@@ -1,9 +1,6 @@
 name: Trivy Vulnerabilities Scan
 
 on:
-  push:
-    branches:
-      - "*"
   pull_request:
 
 jobs:
@@ -15,18 +12,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
         # with:
         #   sparse-checkout: ./examples/
 
-      #   - name: Cache Terraform
-      #     id: cache-terraform
-      #     uses: actions/cache@v4
-      #     with:
-      #       path: ~/bin
+        #   - name: Cache Terraform
+        #     id: cache-terraform
+        #     uses: actions/cache@v4
+        #     with:
+        #       path: ~/bin
       #       key: terraform-${{ env.TF_VERSION }}
-
       #   - name: Download terraform
       #     if: steps.cache-terraform.outputs.cache-hit != 'true'
       #     run: |
@@ -35,7 +29,6 @@ jobs:
       #       unzip terraform.zip
       #       mv -v terraform "${HOME}/bin/terraform"
       #       ~/bin/terraform version
-
       #   - name: Run terraform init
       #     run: |
       #       ~/bin/terraform -chdir=aws init
@@ -48,7 +41,6 @@ jobs:
       #       ~/bin/terraform -chdir=examples/gcp init
       #       ~/bin/terraform -chdir=examples/openstack init
       #       ~/bin/terraform -chdir=examples/ovh init
-
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
         with:
@@ -59,20 +51,22 @@ jobs:
           #   output: "trivy-results.sarif"
           output: trivy.txt
 
-      #   - name: Upload Trivy scan results to GitHub Security tab
+        #   - name: Upload Trivy scan results to GitHub Security tab
       #     uses: github/codeql-action/upload-sarif@v3
       #     with:
       #       sarif_file: "trivy-results.sarif"
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       - name: Publish Trivy Output to Summary
         run: |
           if [[ -s trivy.txt ]]; then
           {
-              echo "### Security Output"
-              echo "<details><summary>Click to expand</summary>"
-              echo ""
-              echo '```terraform'
-              cat trivy.txt
-              echo '```'
-              echo "</details>"
-          } >> $GITHUB_STEP_SUMMARY
-          fi
+            echo "### Security Output"
+            echo "<details><summary>Click to expand</summary>"
+            echo ""
+            echo '```terraform'
+            cat trivy.txt
+            echo '```'
+            echo "</details>"
+            } >> $GITHUB_STEP_SUMMARY
+            fi
