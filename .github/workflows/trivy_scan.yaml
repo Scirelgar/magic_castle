@@ -41,6 +41,11 @@ jobs:
       #       ~/bin/terraform -chdir=examples/gcp init
       #       ~/bin/terraform -chdir=examples/openstack init
       #       ~/bin/terraform -chdir=examples/ovh init
+      - name: Manual Trivy Setup
+        uses: aquasecurity/setup-trivy@v0.2.0
+        with:
+          cache: true
+          version: v0.59.0
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
         with:
