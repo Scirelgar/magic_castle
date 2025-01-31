@@ -22,7 +22,7 @@ jobs:
           skip-setup-trivy: true
           scan-type: "fs"
           scanners: "misconfig"
-          severity: "CRITICAL,HIGH"
+          severity: "CRITICAL,HIGH,MEDIUM"
           format: "sarif"
           output: "trivy-results.sarif"
 
