@@ -16,6 +16,10 @@ jobs:
         with:
           cache: true
 
+      # TODO - Add a step to separate files into release directories without actually
+      #       creating the release tarballs and zips, requires modifying the release.sh script
+      #       to accept a flag to only separate files into directories
+
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
         with:
