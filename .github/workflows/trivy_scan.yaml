@@ -11,16 +11,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Manual Trivy Setup
-        uses: aquasecurity/setup-trivy@v0.2.2
-        with:
-          cache: true
-
       # TODO - Add a step to separate files into release directories without actually
       #       creating the release tarballs and zips, requires modifying the release.sh script
       #       to accept a flag to only separate files into directories
       - name: Compose release to scan
         run: ./compose.sh
+
+      - name: Manual Trivy Setup
+        uses: aquasecurity/setup-trivy@v0.2.2
+        with:
+          cache: true
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.29.0
