@@ -54,3 +54,9 @@ jobs:
             echo "</details>"
             } >> $GITHUB_STEP_SUMMARY
             fi
+
+      - name: Cleanup
+        run: |
+          rm -rf magic_castle-scan
+          rm -f trivy-results.json
+          rm -f trivy-results.sarif
