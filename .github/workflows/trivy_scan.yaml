@@ -11,14 +11,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Compose templates to scan
-        run: |
-          ./compose.sh
-          dir magic_castle-scan
-
-      - name: Setup tmate session
-        if: ${{ failure()}}
+      - name: Setup tmate session after cleanup
         uses: mxschmitt/action-tmate@v3
+
+      - name: Compose templates to scan
+        run: ./compose.sh
 
       - name: Manual Trivy Setup
         uses: aquasecurity/setup-trivy@v0.2.2
@@ -58,8 +55,14 @@ jobs:
             } >> $GITHUB_STEP_SUMMARY
             fi
 
+      - name: Setup tmate session before cleanup
+        uses: mxschmitt/action-tmate@v3
+
       - name: Cleanup
         run: |
           rm -rf magic_castle-scan
           rm -f trivy-results.json
           rm -f trivy-results.sarif
+
+      - name: Setup tmate session after cleanup
+        uses: mxschmitt/action-tmate@v3
