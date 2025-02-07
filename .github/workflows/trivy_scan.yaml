@@ -43,13 +43,13 @@ jobs:
 
       - name: Publish Trivy Output to Summary
         run: |
-          if [[ -s trivy-results.txt ]]; then
+          if [[ -s trivy-results.json ]]; then
           {
             echo "### Security Output"
             echo "<details><summary>Click to expand</summary>"
             echo ""
             echo '```terraform'
-            cat trivy-results.txt
+            cat trivy-results.json
             echo '```'
             echo "</details>"
             } >> $GITHUB_STEP_SUMMARY
