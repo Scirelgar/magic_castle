@@ -11,11 +11,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # TODO - Add a step to separate files into release directories without actually
-      #       creating the release tarballs and zips, requires modifying the release.sh script
-      #       to accept a flag to only separate files into directories
-      - name: Compose release to scan
-        run: ./compose.sh
+      - name: Compose templates to scan
+        run: |
+          ./compose.sh
+          dir magic_castle-scan
+
+      - name: Setup tmate session
+        if: ${{ failure()}}
+        uses: mxschmitt/action-tmate@v3
 
       - name: Manual Trivy Setup
         uses: aquasecurity/setup-trivy@v0.2.2
