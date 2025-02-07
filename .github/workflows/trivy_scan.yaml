@@ -31,12 +31,15 @@ jobs:
           scanners: "misconfig"
           severity: "CRITICAL,HIGH,MEDIUM"
           format: "json"
-          output: "trivy-results.txt"
+          output: "trivy-results.json"
 
-      # - name: Upload Trivy scan results to GitHub Security tab
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   with:
-      #     sarif_file: "trivy-results.sarif"
+      - name: Convert Trivy JSON output to SARIF
+        run: trivy convert --format sarif --output trivy-results.sarif trivy-results.json
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results.sarif"
 
       - name: Publish Trivy Output to Summary
         run: |
