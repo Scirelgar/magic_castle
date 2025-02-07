@@ -4,12 +4,11 @@ usage() {
     echo "Usage: $0 [-c CLOUD...]"
     echo ""
     echo "  -c CLOUD...     Specify the cloud providers to include in the release"
-    exit 2
 }
 
 CLOUD=(aws azure gcp openstack ovh)
 
-while getopts "sc:" opt; do
+while getopts "c:" opt; do
     case "$opt" in
         c) 
             if [ -z "$OPTARG" ] || [[ "$OPTARG" = -* ]]; then
@@ -25,7 +24,9 @@ while getopts "sc:" opt; do
             done
             OPTIND=$((OPTIND-1))
             ;;
-        *) usage ;;
+        *)  usage
+            exit 2
+            ;;
     esac
 done
 
