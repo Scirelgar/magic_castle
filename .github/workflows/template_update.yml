@@ -1,0 +1,23 @@
+name: Update MC openstack template
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  update-templates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the main repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: "magic_castle/magic_castle-openstack-scan"
+
+      - name: Check out the template repository
+        uses: actions/checkout@v4
+        with:
+          repository: "MagicCastle/mc-template-openstack"
