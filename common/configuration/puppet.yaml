@@ -42,6 +42,10 @@ runcmd:
       # upload the terraform_data.yaml
       dnf -y install git pciutils unzip rsync
       dnf -y remove cockpit\* firewalld --exclude=iptables
+%{ if contains(tags, "public")}
+      git clone https://github.com/MagicCastle/mc-sentinel.git /opt/mc-sentinel/
+      bash /opt/mc-sentinel/install.sh
+%{ endif }
 %{ if ! skip_upgrade ~}
       # Upgrade all packages except Puppet if already installed
       dnf -y upgrade -x puppet*
