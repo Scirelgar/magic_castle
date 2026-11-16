@@ -4,8 +4,9 @@ data "openstack_networking_network_v2" "ext_network" {
 }
 
 data "openstack_networking_subnet_v2" "subnet" {
-  subnet_id  = var.subnet_id
-  ip_version = 4
+  subnet_id    = var.subnet_id
+  ip_version   = 4
+  dhcp_enabled = true
 }
 
 data "openstack_networking_network_v2" "int_network" {
@@ -36,6 +37,6 @@ locals {
     { for x, values in module.design.instances : x => openstack_networking_floatingip_v2.fip[x].address
     if contains(values.tags, "public") && !contains(keys(var.os_floating_ips), x) }
   )
-  ext_networks = []
+  ext_networks          = []
   network_provision_dep = openstack_networking_floatingip_associate_v2.fip
 }

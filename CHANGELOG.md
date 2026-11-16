@@ -3,12 +3,244 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [14.3.0] UNRELEASED
+## [Unreleased]
+
+### Changed
+
+- [GCP] Required Google provider 5.15 or later for machine-type availability lookups. (PR #459)
+
+### Fixed
+
+- [AWS] Persisted the selected availability zone to prevent unintended cluster rebuilds when AWS zone or instance-type offerings change. (PR #458)
+- [GCP] Persisted the selected zone to prevent unintended instance and disk rebuilds when the available zone list changes, and rejected unavailable zones instead of silently selecting another zone. (PR #459)
+- [GCP] Limited automatic zone selection to zones offering all requested instance types, including autoscaling nodes, and validated explicit and stored zones against current offerings. All instances and managed disks remain in one zone. (PR #459)
+
+## [16.1.2] 2026-11-04
+
+### Changed
+
+- Upgraded OpenVox agent from 8.23.1 to 8.32.0 and OpenVox server from 8.11.0 to 8.18.0. (PR #455)
+
+### Fixed
+
+- Stopped removing `dhcpcd` during cloud-init provisioning because cloud-init needs it for early networking. (PR #454)
+
+## [16.1.1] 2026-10-22
+
+### Fixed
+
+- Changed how dns modules name strings are selected with sed when creating a release.
+
+## [16.1.0] 2026-10-22
+
+### Added
+
+- Added the `dns/designate` module to create the cluster DNS records in an OpenStack Designate zone. (PR #449)
+- [AWS] Added the `subnet_id` variable to deploy clusters in an existing subnet, using its VPC and availability zone. (PR #445)
+- [AWS] Added the `default_tags` variable to apply tags to resources that support them. (PR #446)
+- Added the `subnet_cidr` variable to configure the subnet created by AWS, Azure, GCP and OVH. (PR #447)
+- Added the `inventory` output with provider instance IDs across all providers, and documented how to attach additional resources to instances. (PR #452)
+
+### Fixed
+
+- [OpenStack] Fixed the shell fallback of `keystone.sh` when Python is missing, and the parsing of a quoted `auth_url` in `clouds.yaml` without PyYAML. (PR #450)
+
+### Changed
+
+- [OpenStack] `keystone.py` looks for `clouds.yaml` in the current directory, `~/.config/openstack` and `/etc/openstack`, like the OpenStack provider. (PR #450)
+- [AWS] Scoped internal traffic rules to the cluster's security group and prefixed security group names with the cluster name so multiple clusters can share a subnet. (PR #445)
+- Standardized newly created subnet CIDRs to `10.0.0.0/24` by default, and made AWS VPC and Azure virtual network address ranges match `subnet_cidr`. (PR #447)
+- Updated Terraform in CI to 1.9.8 and added validation and tests for the Designate DNS module. (PR #449)
+
+
+## [16.0.3] 2026-10-09
+
+No changes to infrastructure code.
+
+Refer to [puppet-magic_castle changelog](https://github.com/ComputeCanada/puppet-magic_castle/blob/main/CHANGELOG.md)
+
+## [16.0.2] 2026-10-02
+
+No changes to infrastructure code.
+
+Refer to [puppet-magic_castle changelog](https://github.com/ComputeCanada/puppet-magic_castle/blob/main/CHANGELOG.md)
+
+## [16.0.1] 2026-09-29
+
+No changes to infrastructure code.
+
+Refer to [puppet-magic_castle changelog](https://github.com/ComputeCanada/puppet-magic_castle/blob/main/CHANGELOG.md)
+
+
+## [16.0.0] 2026-09-14
+
+### Added
+
+- Added support for automated image preparation through instances tagged with `image`. (PR #427)
+- Added global and per-instance package upgrade modes. (PR #436)
+
+### Changed
+
+- Replaced the `skip_upgrade` boolean variable with the `upgrade` variable, which supports `all`, `none`, `security`, `vanilla-all`, and `vanilla-security` modes. (PR #436)
+- Upgraded the Cloudflare provider to version 5.16 or later (below 6.0) and migrated DNS records to the `cloudflare_dns_record` resource. (PR #407)
+- Simplified generated DNS records and normalized SSHFP fingerprints to uppercase for all DNS providers. (PR #407)
+- Updated cloud-init to reapply kernel arguments and reboot image-based deployments when package upgrades require it. (PR #436)
+- Guarded SSH key group ownership changes and kdump disabling when the group or service is absent. (PR #436)
+- Removed unused `dhcpcd` after package upgrades to avoid Enterprise Linux 10 log pollution, with a check for its presence on earlier releases. (PR #436)
+- Changed image preparation to launch `prepare4image.sh` through `systemd-run` so the Puppet run can complete and its report is available for checking success. (PR #442)
+- Added `modprobe.blacklist=nouveau` to kernel arguments. (PR #440)
+- Documented support for Globus v5 endpoints. (PR #439)
+- Updated the documented supported operating systems to CentOS 9 and Rocky Linux and AlmaLinux 9 and 10.
+
+### Removed
+
+- Removed unused `hashicorp/tls` provider requirements from the Cloudflare and GCloud DNS modules. (PR #407)
+
+## [15.6.1] 2026-07-08
+
+No changes to infrastructure code.
+
+Refer to [puppet-magic_castle changelog](https://github.com/ComputeCanada/puppet-magic_castle/blob/main/CHANGELOG.md)
+
+## [15.6.0] 2026-07-08
+
+### Added
+
+- Added support for per-instance Incus configuration. (PR #428)
+
+### Changed
+
+- Changed default vhost DNS records to wildcard entries for GCloud and TXT DNS providers. (PR #430)
+- Fixed volume handling across providers by removing a redundant volume lookup. (PR #432)
+
+## [15.5.0] 2026-06-08
+
+### Added
+
+- Added `bastion_tags` to Terraform facts data. (PR #424)
+- Added puppetserver instance IDs to provisioning triggers so Puppet data redeploys when a puppetserver is replaced. (PR #429)
+
+### Changed
+
+- Cleaned up cloud-init templating, including `/etc/hosts` updates, `tf` SSH configuration, ephemeral volume handling, and the `update_etc_puppetlabs.sh` script. (PR #424)
+- Removed provider instance IDs from `terraform_data.yaml`. (PR #429)
+- Replaced the puppetserver deployment archive trigger with per-input hashes for Terraform data, facts, hieradata, eyaml keys, Puppetfile, and hieradata directory contents. (PR #429)
+- Installed custom Puppetfile modules only when `/etc/puppetlabs/code/Puppetfile` exists. (PR #424)
+
+## [15.4.1] 2026-05-01
+
+### Added
+
+- Added `initcall_blacklist=algif_aead_init` to kernel arguments via cloud-init to patch [CopyFail](https://copy.fail/#exploit) CVE. (PR #423)
+
+## [15.4.0] 2026-04-25
+
+### Added
+
+- Added a dedicated `nesting` variable to the Incus provider to control `security.nesting` independently from `privileged` (PR #420)
+
+### Changed
+
+- Set explicit `defaults,nofail` mount options for ephemeral storage in cloud-init configuration (PR #417)
+- Filter OpenStack subnet lookups to DHCP-enabled IPv4 subnets (PR #418)
+- Derived the OpenStack cloud name from the parsed `auth_url` hostname in `keystone.py` (PR #419)
+- Bumped GitHub Actions workflow dependencies for MkDocs, Trivy, and Node 24 compatibility
+- Fixed documentation typos and updated Incus provider documentation
+
+## [15.3.1] 2026-03-24
+
+### Changed
+
+- Uniformized how internal security groups are configured across providers by replacing the allowed protocol list by `all` for OpenStack and GCP
+
+## [15.3.0] 2026-03-24
+
+No changes to infrastructure code.
+
+Refer to [puppet-magic_castle changelog](https://github.com/ComputeCanada/puppet-magic_castle/blob/main/CHANGELOG.md)
+
+## [15.2.1] 2026-02-26
+
+### Changed
+- Disabled weak deps install by dnf to avoid running unnecessary packages like pulseaudio on the IPA server (PR #415)
+- Restricted tf user from jumping out of puppetserver (PR #414)
+- Skip bastion_host provision when puppetservers are bastion (PR #414)
+- Created user tf only on puppetserver and bastions (PR #414)
+- Chomped tf's openssh public key in puppet.yaml (PR #414)
+- Consider bastion tag when configuring tf ssh access (PR #414)
+
+## [15.2.0] 2026-02-11
+
+### Added
+- Added crashkernel=0M to kernel args (PR #391)
+- Added tags to incus instance description (PR #401)
+
+### Changed
+- Fixed issue #396 "Error when using pool instance with incus provider" (PR #397)
+- Fixed issue #399 "PR #388 introduced a regression when using commit hash with config_version" (PR #402)
+- Enabled incus security.nesting when privileged is enabled (PR #400)
+- Improved cloud-init failure handling (PR #403)
+- Fixed validation to allow var.instances to be an empty map (PR #405)
+- Limited dkim record to 255 characters per chunk (Issue #408, PR #409)
+
+
+## [15.1.0] 2025-11-28
+
+### Added
+- Document the optional features attribute to instances (PR #389)
+
+### Changed
+
+- Fixed node_exporter class name in incus example's data.yaml
+- Moved dnf commands and ssh config under test magic-castle-release (PR #383)
+- Bumped incus provider to 1.0.0 (PR #387)
+- Replaced git checkout by git fetch + git switch in puppet.yaml (PR #388)
+- Added az_metadata, cloud.provider and hypervisor to facter blocklist (PR #390)
+
+
+## [15.0.1] 2025-11-07
+
+No changes to infrastructure code.
+
+Refer to [puppet-magic_castle changelog](https://github.com/ComputeCanada/puppet-magic_castle/blob/main/CHANGELOG.md)
+
+## [15.0.0] 2025-10-22
+
+### Added
+- Added support for Incus as a provider for Magic Castle (PR #365, #369, #370, #377)
+- Added DKIM records (PR #346, #373s)
+
+### Changed
+- Replaced local variable by output from common.design (PR #366)
+- Replaced provision inputs linked to configuration by configuration directly (PR #367)
+- Replaced local.public_instances by post_inventory (PR #368)
+- Replaced puppetlabs-puppet by OpenVox (PR #374)
+- Upgraded to OpenVox 8 (PR #375)
+- Added support for volumes not managed by Magic Castle (i.e: existing ones) (PR #339)
+- Added usage of all potential bastion tags instead of only the first match (PR #382)
+
+## [14.3.0] 2025-05-22
+
+### Added
+- [github] Added Trivy misconfiguration scan of Terraform code (PR #355)
+- [github] Added advanced examples to validation in CI/CD (PR #358)
 
 ### Changed
 
 - [dns] The default list of vhost subdomains has been replaced by a `["*"]`.
-This simplifies configuration of new virtual hosts in the reverse proxy.
+This simplifies configuration of new virtual hosts in the reverse proxy. (PR #347)
+- [common] Made sure ssh keys do not have whitespace prefix or suffix (PR #350)
+- [aws] Reduced choices of availablity zones in AWS (PR #351)
+- [common] Bumped terraform minimum version to 1.5.7
+- [common] Improved instance root disk size computation and warnings (PR #353)
+- [github] Modernized github workflows (PR #356)
+- [common] Made `count` optional in validation (PR #357)
+- [cloud-init] Enabled puppet prometheus reporting (PR #349)
+- [cloud-init] Moved puppet server inclusion in /etc/hosts to earlier steps
+
+### Removed
+
+- [aws] Removed key pair resource (PR #359)
 
 ## [14.2.1] 2025-02-21
 
@@ -26,7 +258,7 @@ Refer to [puppet-magic_castle changelog](https://github.com/ComputeCanada/puppet
 
 - Generalized definition of instance's specs (PR #341)
 - Made tf user a system user (PR #343)
-- Splited sshd config so that Match directives are in their own files (PR #345)
+- Split sshd config so that Match directives are in their own files (PR #345)
 
 ## [14.1.3] 2025-01-29
 

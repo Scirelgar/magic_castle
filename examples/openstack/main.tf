@@ -1,10 +1,10 @@
 terraform {
-  required_version = ">= 1.4.0"
+  required_version = ">= 1.5.7"
 }
 
 variable "pool" {
   description = "Slurm pool of compute nodes"
-  default = []
+  default     = []
 }
 
 module "openstack" {
@@ -17,9 +17,9 @@ module "openstack" {
   image        = "Rocky-9"
 
   instances = {
-    mgmt   = { type = "p4-6gb", tags = ["puppet", "mgmt", "nfs"], count = 1 }
-    login  = { type = "p2-3gb", tags = ["login", "public", "proxy"], count = 1 }
-    node   = { type = "p2-3gb", tags = ["node"], count = 1 }
+    mgmt  = { type = "p4-6gb", tags = ["puppet", "mgmt", "nfs"], count = 1 }
+    login = { type = "p2-3gb", tags = ["login", "public", "proxy"], count = 1 }
+    node  = { type = "p2-3gb", tags = ["node"], count = 1 }
   }
 
   # var.pool is managed by Slurm through Terraform REST API.
@@ -30,9 +30,9 @@ module "openstack" {
 
   volumes = {
     nfs = {
-      home     = { size = 100 }
-      project  = { size = 50 }
-      scratch  = { size = 50 }
+      home    = { size = 100 }
+      project = { size = 50 }
+      scratch = { size = 50 }
     }
   }
 
@@ -64,6 +64,14 @@ output "public_ip" {
 #   source           = "git::https://github.com/ComputeCanada/magic_castle.git//dns/gcloud"
 #   project          = "your-project-id"
 #   zone_name        = "you-zone-name"
+#   name             = module.openstack.cluster_name
+#   domain           = module.openstack.domain
+#   public_instances = module.openstack.public_instances
+# }
+
+## Uncomment to register your domain name with OpenStack Designate
+# module "dns" {
+#   source           = "git::https://github.com/ComputeCanada/magic_castle.git//dns/designate"
 #   name             = module.openstack.cluster_name
 #   domain           = module.openstack.domain
 #   public_instances = module.openstack.public_instances

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.4.0"
+  required_version = ">= 1.5.7"
 }
 
 module "openstack" {
@@ -12,9 +12,9 @@ module "openstack" {
   image        = "Rocky-9"
 
   instances = {
-    master   = { type = "c2-7.5gb-31", tags = ["controller", "puppet", "public"], count = 1 }
-    replica  = { type = "c2-7.5gb-31", tags = ["controller"], count = 2 }
-    node     = { type = "c2-7.5gb-31", tags = ["worker"], count = 5 }
+    master  = { type = "c2-7.5gb-31", tags = ["controller", "puppet", "public"], count = 1 }
+    replica = { type = "c2-7.5gb-31", tags = ["controller"], count = 2 }
+    node    = { type = "c2-7.5gb-31", tags = ["worker"], count = 5 }
   }
 
   volumes = {

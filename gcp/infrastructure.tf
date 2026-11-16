@@ -7,43 +7,43 @@ module "design" {
   source         = "../common/design"
   cluster_name   = var.cluster_name
   domain         = var.domain
+  image          = var.image
   instances      = var.instances
+  min_disk_size  = 20
   pool           = var.pool
   volumes        = var.volumes
   firewall_rules = var.firewall_rules
+  bastion_tags   = var.bastion_tags
+  upgrade        = var.upgrade
 }
 
 module "configuration" {
-  source                = "../common/configuration"
-  inventory             = local.inventory
-  config_git_url        = var.config_git_url
-  config_version        = var.config_version
-  sudoer_username       = var.sudoer_username
-  public_keys           = var.public_keys
-  domain_name           = module.design.domain_name
-  bastion_tag           = module.design.bastion_tag
-  cluster_name          = var.cluster_name
-  guest_passwd          = var.guest_passwd
-  nb_users              = var.nb_users
-  software_stack        = var.software_stack
-  cloud_provider        = local.cloud_provider
-  cloud_region          = local.cloud_region
-  skip_upgrade          = var.skip_upgrade
-  puppetfile            = var.puppetfile
+  source          = "../common/configuration"
+  inventory       = local.inventory
+  config_git_url  = var.config_git_url
+  config_version  = var.config_version
+  sudoer_username = var.sudoer_username
+  public_keys     = var.public_keys
+  domain_name     = module.design.domain_name
+  bastion_tags    = module.design.bastion_tags
+  cluster_name    = var.cluster_name
+  guest_passwd    = var.guest_passwd
+  nb_users        = var.nb_users
+  software_stack  = var.software_stack
+  cloud_provider  = local.cloud_provider
+  cloud_region    = local.cloud_region
+  puppet_conf     = var.puppet_conf
 }
 
 module "provision" {
-  source          = "../common/provision"
-  bastions        = module.configuration.bastions
-  puppetservers   = module.configuration.puppetservers
-  tf_ssh_key      = module.configuration.ssh_key
-  terraform_data  = module.configuration.terraform_data
-  terraform_facts = module.configuration.terraform_facts
-  hieradata       = var.hieradata
-  hieradata_dir   = var.hieradata_dir
-  eyaml_key       = var.eyaml_key
-  puppetfile      = var.puppetfile
-  depends_on      = [ google_compute_instance.instances ]
+  source           = "../common/provision"
+  configuration    = module.configuration
+  hieradata        = var.hieradata
+  hieradata_dir    = var.hieradata_dir
+  eyaml_key        = var.eyaml_key
+  puppetfile       = var.puppetfile
+  puppetserver_ids = local.puppetserver_ids
+  depends_on       = [google_compute_instance.instances]
 }
 
 
@@ -51,39 +51,75 @@ data "google_compute_zones" "available" {
   status = "UP"
 }
 
+locals {
+  instance_types = distinct([for instance in var.instances : instance.type])
+}
+
+data "google_compute_machine_types" "available" {
+  for_each = toset(data.google_compute_zones.available.names)
+  project  = var.project
+  zone     = each.key
+  filter   = join(" OR ", [for type in local.instance_types : "name = \"${type}\""])
+}
+
+locals {
+  zone_choices = toset([
+    for zone, offerings in data.google_compute_machine_types.available : zone
+    if alltrue([
+      for type in local.instance_types : contains(offerings.machine_types[*].name, type)
+    ])
+  ])
+}
+
 resource "random_shuffle" "random_zone" {
-  input        = data.google_compute_zones.available.names
+  input        = local.zone_choices
   result_count = 1
 }
 
 locals {
-  zone = (
-    (var.zone != "" &&
-      contains(data.google_compute_zones.available.names,
-      var.zone)
-      ?
-      var.zone : random_shuffle.random_zone.result[0]
-    )
-  )
+  zone = terraform_data.zone.output
+}
+
+resource "terraform_data" "zone" {
+  input            = var.zone != "" ? var.zone : random_shuffle.random_zone.result[0]
+  triggers_replace = [var.zone]
+
+  lifecycle {
+    ignore_changes = [input]
+
+    precondition {
+      condition     = length(data.google_compute_zones.available.names) > 0
+      error_message = "There are no available zones in ${var.region}."
+    }
+    precondition {
+      condition     = length(local.zone_choices) > 0
+      error_message = "There is not a single available zone in ${var.region} that provides all selected instance types ${jsonencode(local.instance_types)}."
+    }
+    precondition {
+      condition     = var.zone == "" || contains(data.google_compute_zones.available.names, var.zone)
+      error_message = "The selected zone ${var.zone} is not available in ${var.region}. Select one of ${jsonencode(data.google_compute_zones.available.names)} or leave zone undefined."
+    }
+    precondition {
+      condition     = var.zone == "" || contains(local.zone_choices, var.zone)
+      error_message = "The selected zone ${var.zone} does not provide all selected instance types. Select one of ${jsonencode(local.zone_choices)} or leave zone undefined."
+    }
+    postcondition {
+      condition     = contains(local.zone_choices, self.output)
+      error_message = "The cluster zone ${self.output} is not available or does not provide all selected instance types. Select instance types available in this zone or explicitly change zone to one of ${jsonencode(local.zone_choices)}."
+    }
+  }
 }
 
 data "external" "machine_type" {
   for_each = var.instances
   program  = ["bash", "${path.module}/external/machine_type.sh"]
-  query    = {
+  query = {
     machine_type = each.value.type
   }
 }
 
-locals {
-  to_build_instances = {
-    for key, values in module.design.instances: key => values
-    if ! contains(values.tags, "pool") || contains(var.pool, key)
-   }
-}
-
 resource "google_compute_instance" "instances" {
-  for_each = local.to_build_instances
+  for_each = module.design.instances_to_build
   project  = var.project
   zone     = local.zone
 
@@ -93,9 +129,9 @@ resource "google_compute_instance" "instances" {
 
   boot_disk {
     initialize_params {
-      image = lookup(each.value, "image", var.image)
+      image = each.value.image
       type  = lookup(each.value, "disk_type", "pd-ssd")
-      size  =  lookup(each.value, "disk_size", 20)
+      size  = each.value.disk_size
     }
   }
 
@@ -143,17 +179,37 @@ resource "google_compute_instance" "instances" {
 }
 
 resource "google_compute_disk" "volumes" {
-  for_each = module.design.volumes
-  name     = "${var.cluster_name}-${each.key}"
-  type     = lookup(each.value, "type", "pd-standard")
-  zone     = local.zone
-  size     = each.value.size
+  for_each = {
+    for x, values in module.design.volumes : x => values if lookup(values, "managed", true)
+  }
+  name = "${var.cluster_name}-${each.key}"
+  type = lookup(each.value, "type", "pd-standard")
+  zone = local.zone
+  size = each.value.size
+}
+
+data "google_compute_disk" "existing_volumes" {
+  for_each = {
+    for x, values in module.design.volumes : x => values if !lookup(values, "managed", true)
+  }
+  name = "${var.cluster_name}-${each.key}"
+}
+
+locals {
+  volume_self_links = {
+    for key, values in module.design.volumes :
+    key => lookup(values, "managed", true) ? google_compute_disk.volumes[key].self_link : data.google_compute_disk.existing_volumes[key].self_link
+  }
+  volume_device_names = {
+    for key, values in module.design.volumes :
+    key => lookup(values, "managed", true) ? google_compute_disk.volumes[key].name : data.google_compute_disk.existing_volumes[key].name
+  }
 }
 
 resource "google_compute_attached_disk" "attachments" {
   for_each    = module.design.volumes
-  disk        = google_compute_disk.volumes[each.key].self_link
-  device_name = google_compute_disk.volumes[each.key].name
+  disk        = local.volume_self_links[each.key]
+  device_name = local.volume_device_names[each.key]
   mode        = "READ_WRITE"
   instance    = google_compute_instance.instances[each.value.instance].self_link
 }
@@ -165,26 +221,25 @@ locals {
       local_ip  = google_compute_address.nic[x].address
       prefix    = values.prefix
       tags      = values.tags
+      upgrade   = values.upgrade
       specs = merge({
-        cpus   = data.external.machine_type[values["prefix"]].result["vcpus"]
-        ram    = data.external.machine_type[values["prefix"]].result["ram"]
-        gpus   = try(data.external.machine_type[values["prefix"]].result["gpus"], 0)
+        cpus = data.external.machine_type[values["prefix"]].result["vcpus"]
+        ram  = data.external.machine_type[values["prefix"]].result["ram"]
+        gpus = try(data.external.machine_type[values["prefix"]].result["gpus"], 0)
       }, values.specs)
-      volumes = contains(keys(module.design.volume_per_instance), x) ? {
-        for pv_key, pv_values in var.volumes:
-          pv_key => {
-            for name, specs in pv_values:
-              name => merge(
-                { glob = "/dev/disk/by-id/google-${var.cluster_name}-${x}-${pv_key}-${name}"},
-                specs,
-              )
-          } if contains(values.tags, pv_key)
-      } : {}
+      volumes = {
+        for pv_key, pv_values in var.volumes :
+        pv_key => {
+          for name, specs in pv_values :
+          name => merge(
+            { glob = "/dev/disk/by-id/google-${var.cluster_name}-${x}-${pv_key}-${name}" },
+            specs,
+          )
+        } if contains(values.tags, pv_key)
+      }
     }
   }
 
-  public_instances = { for host in keys(module.design.instances_to_build):
-    host => merge(module.configuration.inventory[host], {id=google_compute_instance.instances[host].id})
-    if contains(module.configuration.inventory[host].tags, "public")
-  }
+  inventory_with_id = { for host, values in local.inventory : host => merge({ id = try(google_compute_instance.instances[host].id, "") }, values) }
+  puppetserver_ids  = { for host, values in local.inventory : host => try(google_compute_instance.instances[host].id, "") if contains(values.tags, "puppet") }
 }

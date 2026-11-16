@@ -11,7 +11,7 @@ if [ -z "$VERSION" ]; then
 fi
 
 if [ -z "$CLOUD" ]; then
-    CLOUD=(aws azure gcp openstack ovh)
+    CLOUD=(aws azure gcp openstack ovh incus)
 fi
 
 if [ "$(uname)" == "Linux" ]; then
@@ -43,8 +43,10 @@ for provider in "${CLOUD[@]}"; do
 
     ## Initialize to create .terraform.lock.hcl file
     cd $cur_folder
-    ## Make sure only one module is named "dns"
-    sed_i '1,/dns/s/dns/cloudflare/' main.tf
+    ## Rename all module "dns" to avoid name collision
+    sed_i '1,/module "dns"/s/module "dns"/ module "cloudflare"/' main.tf
+    sed_i '1,/module "dns"/s/module "dns"/ module "gcloud"/' main.tf
+    sed_i '1,/module "dns"/s/module "dns"/ module "designate"/' main.tf
     ## Uncomment DNS modules
     sed_i 's/^#\ //g' main.tf
     # TODO: skip plugins download once Terraform issue #25813 is fixed

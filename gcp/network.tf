@@ -5,7 +5,7 @@ resource "google_compute_network" "network" {
 resource "google_compute_subnetwork" "subnet" {
   name          = "${var.cluster_name}-subnet"
   network       = google_compute_network.network.self_link
-  ip_cidr_range = "10.0.0.0/24"
+  ip_cidr_range = var.subnet_cidr
   region        = var.region
 }
 
@@ -33,25 +33,16 @@ resource "google_compute_firewall" "allow_all_internal" {
   source_ranges = [google_compute_subnetwork.subnet.ip_cidr_range]
 
   allow {
-    protocol = "tcp"
+    protocol = "all"
   }
-
-  allow {
-    protocol = "udp"
-  }
-
-  allow {
-    protocol = "icmp"
-  }
-
 }
 
 locals {
-  all_tags = toset(flatten([ for key, value in module.design.instances: value.tags ]))
+  all_tags = toset(flatten([for key, value in module.design.instances : value.tags]))
 }
 
 resource "google_compute_firewall" "default" {
-  for_each = { for name, rule in var.firewall_rules: name => rule if contains(local.all_tags, rule.tag) }
+  for_each = { for name, rule in var.firewall_rules : name => rule if contains(local.all_tags, rule.tag) }
   name     = format("%s-%s", var.cluster_name, lower(each.key))
   network  = google_compute_network.network.self_link
 

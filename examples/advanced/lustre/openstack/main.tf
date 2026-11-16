@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.4.0"
+  required_version = ">= 1.5.7"
 }
 
 module "openstack" {
@@ -15,7 +15,7 @@ module "openstack" {
     puppet = { type = "p4-7.5gb", tags = ["puppet"] }
     mds    = { type = "p2-3.75gb", tags = ["mds"], count = 1 }
     oss    = { type = "p2-3.75gb", tags = ["oss"], count = 2 }
-    login = { type = "p2-3.75gb", tags = ["public"], count = 1 }
+    login  = { type = "p2-3.75gb", tags = ["public"], count = 1 }
   }
 
   volumes = {

@@ -1,28 +1,32 @@
-variable "bastions" { }
-variable "puppetservers" { }
-variable "terraform_data" { }
-variable "terraform_facts" { }
-variable "hieradata" { }
-variable "hieradata_dir" { }
-variable "tf_ssh_key" { }
-variable "eyaml_key" { }
-variable "puppetfile" { }
+variable "configuration" {
+  validation {
+    condition     = length(var.configuration.inventory) == 0 || length(var.configuration.bastions) > 0
+    error_message = "Firewall rules do not allow Terraform to SSH to at least one instance."
+  }
+}
+variable "hieradata" {}
+variable "hieradata_dir" {}
+variable "eyaml_key" {}
+variable "puppetfile" {}
+variable "puppetserver_ids" {}
 
 locals {
   provision_folder = "etc_puppetlabs"
 }
 
+# When adding archive_file sources, also add matching sha256 to
+# deploy_puppetserver_files' triggers_replace.
 data "archive_file" "puppetserver_files" {
   type        = "zip"
   output_path = "${path.module}/files/${local.provision_folder}.zip"
 
   source {
-    content  = var.terraform_data
+    content  = var.configuration.terraform_data
     filename = "${local.provision_folder}/data/terraform_data.yaml"
   }
 
   source {
-    content  = var.terraform_facts
+    content  = var.configuration.terraform_facts
     filename = "${local.provision_folder}/facts/terraform_facts.yaml"
   }
 
@@ -41,7 +45,7 @@ data "archive_file" "puppetserver_files" {
   }
 
   dynamic "source" {
-    for_each =  var.eyaml_key != "" ? [var.eyaml_key] : []
+    for_each = var.eyaml_key != "" ? [var.eyaml_key] : []
     content {
       content  = var.eyaml_key
       filename = "${local.provision_folder}/puppet/eyaml/private_key.pkcs7.pem"
@@ -49,7 +53,7 @@ data "archive_file" "puppetserver_files" {
   }
 
   dynamic "source" {
-    for_each = var.puppetfile != "" ? [var.puppetfile]: []
+    for_each = var.puppetfile != "" ? [var.puppetfile] : []
     iterator = filename
     content {
       content  = var.puppetfile
@@ -58,23 +62,39 @@ data "archive_file" "puppetserver_files" {
   }
 }
 
+locals {
+  puppetservers_are_bastion = length(setintersection(keys(var.configuration.bastions), keys(var.configuration.puppetservers))) == length(var.configuration.puppetservers)
+  bastion_host              = length(var.configuration.bastions) > 0 ? var.configuration.bastions[keys(var.configuration.bastions)[0]] : null
+}
+
 resource "terraform_data" "deploy_puppetserver_files" {
-  for_each = length(var.bastions) > 0  ? var.puppetservers : { }
+  for_each = local.bastion_host != null ? var.configuration.puppetservers : {}
 
   connection {
     type                = "ssh"
     agent               = false
-    bastion_host        = var.bastions[keys(var.bastions)[0]].public_ip
+    bastion_host        = local.puppetservers_are_bastion ? null : (contains(local.bastion_host.tags, "public") ? local.bastion_host.public_ip : local.bastion_host.local_ip)
     bastion_user        = "tf"
-    bastion_private_key = var.tf_ssh_key.private
+    bastion_private_key = var.configuration.ssh_key.private
     user                = "tf"
-    host                = each.value
-    private_key         = var.tf_ssh_key.private
+    host                = local.puppetservers_are_bastion && each.value.public_ip != "" ? each.value.public_ip : each.value.local_ip
+    private_key         = var.configuration.ssh_key.private
   }
 
+  # Use individual hashes instead of archive_file.output_sha256
+  # because when using output_sha256 Terraform would trigger a deployment even when the sha256 was unchanged.
+  # Make sure to mirror the content of archive file.
   triggers_replace = {
-    archive = data.archive_file.puppetserver_files.output_sha256
+    puppetserver_ids = var.puppetserver_ids
+    terraform_data   = sha256(var.configuration.terraform_data)
+    terraform_facts  = sha256(var.configuration.terraform_facts)
+    hieradata        = sha256(var.hieradata)
+    eyaml_key        = sha256(var.eyaml_key)
+    puppetfile       = sha256(var.puppetfile)
+    hieradata_dir    = var.hieradata_dir != "" ? sha256(yamlencode([for filename in fileset("${var.hieradata_dir}", "**/*.yaml") : { "key" = filename, "value" = file("${var.hieradata_dir}/${filename}") }])) : sha256("")
   }
+
+  depends_on = [data.archive_file.puppetserver_files]
 
   provisioner "file" {
     source      = "${path.module}/files/${local.provision_folder}.zip"

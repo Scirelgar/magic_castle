@@ -7,43 +7,43 @@ module "design" {
   source         = "../common/design"
   cluster_name   = var.cluster_name
   domain         = var.domain
+  image          = var.image
   instances      = var.instances
+  min_disk_size  = 30
   pool           = var.pool
   volumes        = var.volumes
   firewall_rules = var.firewall_rules
+  bastion_tags   = var.bastion_tags
+  upgrade        = var.upgrade
 }
 
 module "configuration" {
-  source                = "../common/configuration"
-  inventory             = local.inventory
-  config_git_url        = var.config_git_url
-  config_version        = var.config_version
-  sudoer_username       = var.sudoer_username
-  public_keys           = var.public_keys
-  domain_name           = module.design.domain_name
-  bastion_tag           = module.design.bastion_tag
-  cluster_name          = var.cluster_name
-  guest_passwd          = var.guest_passwd
-  nb_users              = var.nb_users
-  software_stack        = var.software_stack
-  cloud_provider        = local.cloud_provider
-  cloud_region          = local.cloud_region
-  skip_upgrade          = var.skip_upgrade
-  puppetfile            = var.puppetfile
+  source          = "../common/configuration"
+  inventory       = local.inventory
+  config_git_url  = var.config_git_url
+  config_version  = var.config_version
+  sudoer_username = var.sudoer_username
+  public_keys     = var.public_keys
+  domain_name     = module.design.domain_name
+  bastion_tags    = module.design.bastion_tags
+  cluster_name    = var.cluster_name
+  guest_passwd    = var.guest_passwd
+  nb_users        = var.nb_users
+  software_stack  = var.software_stack
+  cloud_provider  = local.cloud_provider
+  cloud_region    = local.cloud_region
+  puppet_conf     = var.puppet_conf
 }
 
 module "provision" {
-  source          = "../common/provision"
-  bastions        = module.configuration.bastions
-  puppetservers   = module.configuration.puppetservers
-  tf_ssh_key      = module.configuration.ssh_key
-  terraform_data  = module.configuration.terraform_data
-  terraform_facts = module.configuration.terraform_facts
-  hieradata       = var.hieradata
-  hieradata_dir   = var.hieradata_dir
-  eyaml_key       = var.eyaml_key
-  puppetfile      = var.puppetfile
-  depends_on      = [ azurerm_linux_virtual_machine.instances ]
+  source           = "../common/provision"
+  configuration    = module.configuration
+  hieradata        = var.hieradata
+  hieradata_dir    = var.hieradata_dir
+  eyaml_key        = var.eyaml_key
+  puppetfile       = var.puppetfile
+  puppetserver_ids = local.puppetserver_ids
+  depends_on       = [azurerm_linux_virtual_machine.instances]
 }
 
 
@@ -73,7 +73,7 @@ resource "azurerm_linux_virtual_machine" "instances" {
     name                 = format("%s-%s-disk", var.cluster_name, each.key)
     caching              = "ReadWrite"
     storage_account_type = lookup(each.value, "disk_type", "Premium_LRS")
-    disk_size_gb         = lookup(each.value, "disk_size", 30)
+    disk_size_gb         = each.value.disk_size
   }
 
   dynamic "plan" {
@@ -87,7 +87,7 @@ resource "azurerm_linux_virtual_machine" "instances" {
   }
 
   dynamic "source_image_reference" {
-    for_each = can(tomap(lookup(each.value, "image", var.image))) ? [lookup(each.value, "image", var.image)] : []
+    for_each = can(tomap(each.value.image)) ? [each.value.image] : []
     iterator = key
     content {
       publisher = key.value["publisher"]
@@ -96,7 +96,7 @@ resource "azurerm_linux_virtual_machine" "instances" {
       version   = lookup(key.value, "version", "latest")
     }
   }
-  source_image_id = can(tomap(lookup(each.value, "image", var.image))) ? null : tostring(lookup(each.value, "image", var.image))
+  source_image_id = can(tomap(each.value.image)) ? null : tostring(each.value.image)
 
   computer_name  = each.key
   admin_username = "azure"
@@ -128,7 +128,9 @@ resource "azurerm_linux_virtual_machine" "instances" {
 }
 
 resource "azurerm_managed_disk" "volumes" {
-  for_each             = module.design.volumes
+  for_each = {
+    for x, values in module.design.volumes : x => values if lookup(values, "managed", true)
+  }
   name                 = format("%s-%s", var.cluster_name, each.key)
   location             = var.location
   resource_group_name  = local.resource_group_name
@@ -137,9 +139,24 @@ resource "azurerm_managed_disk" "volumes" {
   disk_size_gb         = each.value.size
 }
 
+data "azurerm_managed_disk" "existing_volumes" {
+  for_each = {
+    for x, values in module.design.volumes : x => values if !lookup(values, "managed", true)
+  }
+  name                = format("%s-%s", var.cluster_name, each.key)
+  resource_group_name = local.resource_group_name
+}
+
+locals {
+  volume_ids = {
+    for key, values in module.design.volumes :
+    key => lookup(values, "managed", true) ? azurerm_managed_disk.volumes[key].id : data.azurerm_managed_disk.existing_volumes[key].id
+  }
+}
+
 resource "azurerm_virtual_machine_data_disk_attachment" "attachments" {
   for_each           = module.design.volumes
-  managed_disk_id    = azurerm_managed_disk.volumes[each.key].id
+  managed_disk_id    = local.volume_ids[each.key]
   virtual_machine_id = azurerm_linux_virtual_machine.instances[each.value.instance].id
   lun                = index(module.design.volume_per_instance[each.value.instance], replace(each.key, "${each.value.instance}-", ""))
   caching            = "ReadWrite"
@@ -148,33 +165,32 @@ resource "azurerm_virtual_machine_data_disk_attachment" "attachments" {
 locals {
   resource_group_name = var.azure_resource_group == "" ? azurerm_resource_group.group[0].name : var.azure_resource_group
 
-  vmsizes   = jsondecode(file("${path.module}/vmsizes.json"))
+  vmsizes = jsondecode(file("${path.module}/vmsizes.json"))
   inventory = { for x, values in module.design.instances :
     x => {
       public_ip = azurerm_public_ip.public_ip[x].ip_address
       local_ip  = azurerm_network_interface.nic[x].private_ip_address
       prefix    = values.prefix
       tags      = values.tags
+      upgrade   = values.upgrade
       specs = merge({
-        cpus   = local.vmsizes[values.type].vcpus
-        ram    = local.vmsizes[values.type].ram
-        gpus   = local.vmsizes[values.type].gpus
+        cpus = local.vmsizes[values.type].vcpus
+        ram  = local.vmsizes[values.type].ram
+        gpus = local.vmsizes[values.type].gpus
       }, values.specs)
-      volumes = contains(keys(module.design.volume_per_instance), x) ? {
-        for pv_key, pv_values in var.volumes:
-          pv_key => {
-            for name, specs in pv_values:
-              name => merge(
-                { glob = "/dev/disk/azure/scsi1/lun${index(module.design.volume_per_instance[x], "${pv_key}-${name}")}" },
-                specs,
-              )
-          } if contains(values.tags, pv_key)
-       } : {}
+      volumes = {
+        for pv_key, pv_values in var.volumes :
+        pv_key => {
+          for name, specs in pv_values :
+          name => merge(
+            { glob = "/dev/disk/azure/scsi1/lun${index(module.design.volume_per_instance[x], "${pv_key}-${name}")}" },
+            specs,
+          )
+        } if contains(values.tags, pv_key)
+      }
     }
   }
 
-  public_instances = { for host in keys(module.design.instances_to_build):
-    host => merge(module.configuration.inventory[host], {id=try(azurerm_linux_virtual_machine.instances[host].id, "")})
-    if contains(module.configuration.inventory[host].tags, "public")
-  }
+  inventory_with_id = { for host, values in local.inventory : host => merge({ id = try(azurerm_linux_virtual_machine.instances[host].id, "") }, values) }
+  puppetserver_ids  = { for host, values in local.inventory : host => try(azurerm_linux_virtual_machine.instances[host].id, "") if contains(values.tags, "puppet") }
 }

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.4.0"
+  required_version = ">= 1.5.7"
 }
 
 module "openstack" {
@@ -16,7 +16,7 @@ module "openstack" {
     agent  = { type = "p2-3.75gb", tags = ["public"] }
   }
 
-  volumes = { }
+  volumes = {}
 
   public_keys = [file("~/.ssh/id_rsa.pub")]
 
